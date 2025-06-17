@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<sub-flow name="database-sapi" doc:id="b1952541-76d2-45c5-9f36-f045c103354d" >
+		<sftp:read doc:name="Read" doc:id="74aa8b47-8a62-4834-8163-5636760bf8f2" config-ref="SFTP_Config1" path="emp-pay-roll.csv" />
+		<ee:transform doc:name="Transform Message" doc:id="15da56fc-3dd9-4155-a3b5-540ce221d20f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try doc:name="Try" doc:id="d9c280c0-1a99-42bd-a064-ae3506dfbeaf" >
+			<db:bulk-insert doc:name="Bulk insert" doc:id="cb085cca-f30c-4b4b-b219-bb85b8db747d" config-ref="Database_Config" >
+				<db:sql ><![CDATA[INSERT INTO employee_db(Emp_Id, First_Name, Last_Name, Date_of_Birth, Joining_Date, Termination_Date, Employee_Status, Payment_Status, Phone_Number, Address, Status)
+VALUES (
+    :Emp_Id,
+    :First_Name,
+    :Last_Name,
+    STR_TO_DATE(:Date_of_Birth, '%d-%m-%Y'),
+    STR_TO_DATE(:Joining_Date, '%d-%m-%Y'),
+    IF(:Termination_Date = '', NULL, STR_TO_DATE(:Termination_Date, '%d-%m-%Y')),
+    :Employee_Status,
+    :Payment_Status,
+    :Phone_Number,
+    :Address,
+    :Status
+)
+ON DUPLICATE KEY UPDATE
+    First_Name = VALUES(First_Name),
+    Last_Name = VALUES(Last_Name),
+    Date_of_Birth = VALUES(Date_of_Birth),
+    Joining_Date = VALUES(Joining_Date),
+    Termination_Date = VALUES(Termination_Date),
+    Employee_Status = VALUES(Employee_Status),
+    Payment_Status = VALUES(Payment_Status),
+    Phone_Number = VALUES(Phone_Number),
+    Address = VALUES(Address),
+    Status = VALUES(Status);
+ 
+ ]]></db:sql>
+			</db:bulk-insert>
+			<sftp:delete doc:name="Delete" doc:id="7078d9d7-192b-4cf7-8f13-f14a61b38223" config-ref="SFTP_Config1" path="emp-pay-roll.csv" />
+			<email:send doc:name="Send" doc:id="12e105b5-9276-4374-9010-de4bb400048d" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="Employee Pay roll Details" >
+				<email:to-addresses >
+					<email:to-address value="anushasr.576@gmail.com" />
+				</email:to-addresses>
+				<email:body >
+					<email:content ><![CDATA[Hi,
+This mail is to inform you that Employee pay roll details have been inserted into database sucessfully]]></email:content>
+				</email:body>
+			</email:send>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="6293f8a8-73e8-4df3-8f78-598b7184835e" type="DB:BAD_SQL_SYNTAX, DB:CONNECTIVITY, DB:QUERY_EXECUTION, DB:RETRY_EXHAUSTED" >
+					<sftp:move doc:name="Move" doc:id="88201545-8016-4ce6-95d6-ff1f04c4b9e3" config-ref="SFTP_Config2" sourcePath="emp/emp-pay-roll.csv" targetPath="/Errors" overwrite="true" />
+					<email:send doc:name="Send" doc:id="e849a6b5-245f-4be3-85eb-335adc7e336a" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="Employee pay roll details" >
+						<email:to-addresses >
+							<email:to-address value="anushasr.576@gmail.com" />
+						</email:to-addresses>
+						<email:body >
+							<email:content ><![CDATA[Hi,
+This email is to notify you that employee detais could not get inserted]]></email:content>
+						</email:body>
+					</email:send>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+</mule>

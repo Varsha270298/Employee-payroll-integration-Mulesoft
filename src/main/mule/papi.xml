@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<sftp:config name="SFTP_Config" doc:name="SFTP Config" doc:id="cb36d151-5d6c-4f30-bfc4-7d3e8e01362d" >
+		<sftp:connection workingDir="/input" host="localhost" username="tester" password="password" />
+	</sftp:config>
+	<sftp:config name="SFTP_Config1" doc:name="SFTP Config" doc:id="18e4aec7-4449-412a-ada3-e21988c7d9d8" >
+		<sftp:connection workingDir="/emp" host="localhost" username="tester" password="password" />
+	</sftp:config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="692ff899-77bc-423d-bd44-f556317702b8" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="root" database="muledb" />
+	</db:config>
+	<sftp:config name="SFTP_Config2" doc:name="SFTP Config" doc:id="c2ce1254-51fe-4ace-a0b5-38b99a5b8a00" >
+		<sftp:connection host="localhost" username="tester" password="password" workingDir="/"/>
+	</sftp:config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="bb334035-cb76-431b-9b1e-cacc66acb6cd" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="chandana.a2720@gmail.com" password="omuxbylfuzgwkbts" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<configuration doc:name="Configuration" doc:id="d4a1b909-9dc5-41a5-9c8e-264267679520" defaultErrorHandler-ref="global-error-handlingError_Handler" />
+	<flow name="employee_payroll_pocFlow" doc:id="442b4b3b-e2a7-4acf-a30e-88789a17e812" >
+		<sftp:listener doc:name="On New or Updated File" doc:id="afcb5ea7-7ff4-4adf-ad04-0f6107f124a6" config-ref="SFTP_Config" timeBetweenSizeCheckUnit="SECONDS">
+			<scheduling-strategy >
+				<fixed-frequency frequency="45" timeUnit="MINUTES" />
+			</scheduling-strategy>
+		</sftp:listener>
+		<!-- [STUDIO:"Read"]<sftp:read doc:name="Read" doc:id="b5665c8b-005b-402a-9e51-5464e60beb4e" config-ref="SFTP_Config" path="employee-data.CSV"/> [STUDIO] -->
+		<logger level="INFO" doc:name="Logger" doc:id="9d796000-2928-43e2-9612-91d89c526f4e" message="#[payload]"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="56013b16-aefa-4614-841f-cd1cbea0ad3b" >
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="b3f66c38-852e-4274-ae32-a40c82f6f458" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload filter ((record) ->
+    record.Joining_Date != null and
+    daysBetween(record.Joining_Date as Date {format: "dd-MM-yyyy"}, now()) <= 15
+)]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<sftp:write doc:name="new emp" doc:id="1d908794-05de-4899-9575-c30cb3f27143" config-ref="SFTP_Config1" path="new-joiners.csv" mode="APPEND"/>
+				<logger level="INFO" doc:name="Logger" doc:id="8db92668-882d-4796-9291-a8732b57deff" message="#[payload]"/>
+			</route>
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="b9c51307-0def-4451-b197-0ef85084b704" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload filter ((record) ->
+    record.Joining_Date != null and
+    daysBetween(record.Joining_Date as Date {format: "dd-MM-yyyy"}, now()) > 15
+)]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<sftp:write doc:name="old emp" doc:id="f1e7c80a-ef5f-4f17-8d8c-8f832527a811" config-ref="SFTP_Config1" path="emp-pay-roll.csv"/>
+				<logger level="INFO" doc:name="Logger" doc:id="2dc01cfd-726b-47e6-b2f0-2081889fd60d" message="#[payload]" />
+				<!-- [STUDIO:"Request"]<http:request method="POST" doc:name="Request" doc:id="ca797879-c42e-4bf4-a923-c3312d10e305" config-ref="HTTP_Request_configuration" path="/emp/"/> [STUDIO] -->
+			</route>
+		</scatter-gather>
+		<logger level="INFO" doc:name="Logger" doc:id="c7614a00-2a5f-4dca-b1be-e257427640d8" message="#[payload]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="70f88f73-545d-4993-b0bf-db31f17ed0dc" name="database-sapi"/>
+		<logger level="INFO" doc:name="Logger" doc:id="b8dda555-2719-4269-b08a-af53d4ff305b" message="Employee pay roll flow executed sucessfully "/>
+		<error-handler ref="global-error-handlingError_Handler" >	
+		</error-handler>
+	</flow>
+</mule>
