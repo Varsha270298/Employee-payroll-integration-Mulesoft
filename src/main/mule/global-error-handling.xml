@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<error-handler name="global-error-handlingError_Handler" doc:id="4b48a597-7a02-47fb-b6c9-f3af970ddadb" >
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="86eff780-8b07-4829-afe1-312679af5934" type="ANY">
+			<ee:transform doc:name="Transform Message" doc:id="c5d1c4c2-278e-4506-a1e4-3381dab9d6f9" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+error:error.detailedDescription]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<email:send doc:name="Send" doc:id="93369884-ded4-4a43-8897-d7351a59e651" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="employee payroll datails">
+				<email:to-addresses >
+					<email:to-address value="varshabodke98@gmail.com" />
+				</email:to-addresses>
+				<email:body >
+					<email:content ><![CDATA[Hi,
+
+This mail is to inform you that , Employee details could not get inserted into database]]></email:content>
+				</email:body>
+			</email:send>
+		</on-error-continue>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="66a72c60-87e4-4bb8-8a1e-9ba5d69f324a" type="SFTP:ILLEGAL_PATH">
+			<ee:transform doc:name="Transform Message" doc:id="e932fced-00e3-4950-89ce-41d4b8e9b840" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error:error.detailedDescription]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<email:send doc:name="Send" doc:id="52c24a33-acdd-4142-9814-62223df5e084" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="Employee payroll datails">
+				<email:to-addresses >
+					<email:to-address value="varshabodke98@gmail.com" />
+				</email:to-addresses>
+				<email:body >
+					<email:content ><![CDATA[Hi, Could not insert the Employee pay roll details ]]></email:content>
+				</email:body>
+			</email:send>
+		</on-error-continue>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="c63e8e71-711a-4633-89f3-c0e1991572b1" type="SFTP:FILE_ALREADY_EXISTS">
+			<ee:transform doc:name="Transform Message" doc:id="e0b928be-c990-4ec9-bb3b-5cfcbf3322e1" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<email:send doc:name="Send" doc:id="3b75af2c-2a0d-469b-b64b-31a33e476284" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="Employee payroll datails">
+				<email:to-addresses >
+					<email:to-address value="varshabodke98@gmail.com" />
+				</email:to-addresses>
+				<email:body >
+					<email:content ><![CDATA[Hi,
+
+This mail is to inform you that, employee details could not get inserted into database]]></email:content>
+				</email:body>
+			</email:send>
+		</on-error-continue>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="da6be84e-73c3-459a-9cb0-7a7ebb462d7a" type="SFTP:FILE_DOESNT_EXIST">
+			<ee:transform doc:name="Transform Message" doc:id="7b016528-ba1b-434f-b671-86c9be1a98ee" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+error.errorMessage]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<email:send doc:name="Send" doc:id="28a6cd65-8dcb-4586-9872-0ae801b105ad" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="Employee payroll details">
+				<email:to-addresses >
+					<email:to-address value="varshabodke98@gmail.com" />
+				</email:to-addresses>
+				<email:body >
+					<email:content ><![CDATA[Hi,
+
+This mail is to inform you that , Employee details could not get inserted into database]]></email:content>
+				</email:body>
+			</email:send>
+		</on-error-continue>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="f10aa5ec-36f0-4251-9a3a-8914c8c8acff" type="SFTP:CONNECTIVITY">
+			<ee:transform doc:name="Transform Message" doc:id="63ac8589-b2da-4d36-8ccf-f711f0743158" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.errorMessage]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<email:send doc:name="Send" doc:id="06317b1d-be4f-4b50-9d33-f802f6f5179c" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="Employee Payroll Details">
+				<email:to-addresses >
+					<email:to-address value="varshabodke98@gmail.com" />
+				</email:to-addresses>
+				<email:body >
+					<email:content ><![CDATA[Hi, 
+
+Could not insert the employee pay roll into database details due to server connectivity issues]]></email:content>
+				</email:body>
+			</email:send>
+		</on-error-continue>
+	</error-handler>
+</mule>

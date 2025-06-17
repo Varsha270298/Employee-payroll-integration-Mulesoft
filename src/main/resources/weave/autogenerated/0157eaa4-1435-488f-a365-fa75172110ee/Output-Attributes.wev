@@ -1,0 +1,14 @@
+%dw 2.0
+
+type auto_0157eaa4_1435_488f_a365_fa75172110ee_Output_Attributes = {|
+  timestamp: DateTime {"typeId": "java.time.ZonedDateTime"}, 
+  size: Number, 
+  regularFile?: Boolean {"typeId": "boolean"}, 
+  directory?: Boolean {"typeId": "boolean"}, 
+  symbolicLink?: Boolean {"typeId": "boolean"}, 
+  path: String, 
+  fileName: String
+|} {"typeId": "org.mule.extension.sftp.api.SftpFileAttributes",
+"class": "org.mule.extension.sftp.api.SftpFileAttributes",
+"typeAlias": "SftpFileAttributes"}
+

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="0d61edf3-3b0d-4482-9b18-54fff42c0043" >
+		<db:generic-connection url="jdbc:postgresql://localhost:5432/Varsha" driverClassName="org.postgresql.Driver" user="postgres" password="Postgres" />
+	</db:config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="e368c8ba-a2ba-416e-8217-97c0c66c3541" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="chandana.a2720@gmail.com" password="omuxbylfuzgwkbts" connectionTimeout="10">
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<flow name="emp-sapiFlow" doc:id="a63fb4c8-ece1-43c8-bd29-96443b550cdb" >
+		<logger level="INFO" doc:name="Logger" doc:id="8c727016-9ccd-4185-9fcc-3507de9d9d83" message="#[payload]"/>
+		<sftp:read doc:name="Read" doc:id="e6a9c490-29b1-4f44-90bb-1e9b61cc2d4a" config-ref="SFTP_Config1" path="/payload_data_file.csv"/>
+		<ee:transform doc:name="Transform Message" doc:id="0b818d10-8805-4153-845e-cf43a31c1f5e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try doc:name="Try" doc:id="773b89d5-0d43-4483-865b-a39326e89624" >
+			<db:bulk-insert doc:name="Bulk insert" doc:id="e27b4c0c-b844-4c1d-97ee-e7c18a10dad3" config-ref="Database_Config">
+				<db:sql ><![CDATA[INSERT INTO Employee (
+    Emp_Id, First_Name, Last_Name, Date_of_Birth, Joining_Date, Termination_Date, 
+    Employee_Status, Payment_Status, Phone_Number, Address, Status
+)
+VALUES (
+    :Emp_Id, :First_Name, :Last_Name, 
+    TO_DATE(:Date_of_Birth, 'DD-MM-YYYY'), 
+    TO_DATE(:Joining_Date, 'DD-MM-YYYY'), 
+    NULLIF(TO_DATE(:Termination_Date, 'DD-MM-YYYY'), TO_DATE('', 'DD-MM-YYYY')), 
+    :Employee_Status, :Payment_Status, :Phone_Number, :Address, :Status
+)
+ON CONFLICT (Emp_Id) DO UPDATE
+SET 
+    First_Name = EXCLUDED.First_Name,
+    Last_Name = EXCLUDED.Last_Name,
+    Date_of_Birth = EXCLUDED.Date_of_Birth,
+    Joining_Date = EXCLUDED.Joining_Date,
+    Termination_Date = EXCLUDED.Termination_Date,
+    Employee_Status = EXCLUDED.Employee_Status,
+    Payment_Status = EXCLUDED.Payment_Status,
+    Phone_Number = EXCLUDED.Phone_Number,
+    Address = EXCLUDED.Address,
+    Status = EXCLUDED.Status;]]></db:sql>
+			</db:bulk-insert>
+			<sftp:delete doc:name="Delete" doc:id="3bfd7c51-3c38-4e01-9cfa-bf337c20d8de" config-ref="SFTP_Config1" path="/payload_data_file.csv" />
+			<email:send doc:name="Send" doc:id="0cdc3f4b-d234-4d75-85dc-79cc8b9abd0f" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="Pass Key Auth">
+				<email:to-addresses>
+					<email:to-address value="varshabodke98@gmail.com" />
+				</email:to-addresses>
+				<email:body >
+					<email:content ><![CDATA[Required]]></email:content>
+				</email:body>
+			</email:send>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="5bb09c36-3ad1-498e-bcbf-b43fe9cdb8cb" >
+					<sftp:move doc:name="Move" doc:id="4a495c69-81bb-4cde-a7f7-2659a6cde47b" config-ref="SFTP_Config1" sourcePath="/output/payload_data_file.csv" targetPath="/Error"/>
+					<email:send doc:name="Send" doc:id="58ad8af9-3c02-437b-824a-89d4e7c62ec5" config-ref="Email_SMTP" fromAddress="chandana.a2720@gmail.com" subject="Payroll">
+						<email:to-addresses >
+							<email:to-address value="varshabodke98@gmail.com" />
+						</email:to-addresses>
+						<email:body >
+							<email:content ><![CDATA[Employee payroll details]]></email:content>
+						</email:body>
+					</email:send>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</flow>
+</mule>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+	<munit:config name="emp-sapi-test-suite.xml" />
+	<munit:test name="emp-sapi-test-suite-emp-sapiFlowTest" doc:id="7d998e8b-27dc-4982-a2c6-6f9a560e996e" description="Test" ignore="true">
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock when" doc:id="a1236300-5d37-4cf0-8683-ec7243dd8daa" processor="sftp:listener">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="On New or Updated File" attributeName="doc:name" />
+				</munit-tools:with-attributes>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow Reference" doc:id="821130cb-c69f-48ad-a869-4039f39839ed" name="pocFlow"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that expected payload" doc:id="e67b2cfe-6293-4b9f-86d7-83defcaf0ce8" is="#[MunitTools::equalTo(readUrl('classpath://responses/success-response.json', 'application/json'))]" expression="#[payload]"/>
+			<munit-tools:assert-that doc:name="Assert the httpStatus" doc:id="6b42c928-a1b3-45a9-bf4e-2cfed7c3e5fd" expression="#[vars.httpStatus]" is="#[MunitTools::equalTo(201)]"/>
+		</munit:validation>
+	</munit:test>
+
+
+</mule>

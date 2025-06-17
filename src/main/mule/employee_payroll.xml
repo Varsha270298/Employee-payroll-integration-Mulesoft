@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="1ba56536-0bab-487d-8513-84a941cabec5" >
+		<http:request-connection host="localhost" port="8082" connectionIdleTimeout="9000000" />
+	</http:request-config>
+	<sftp:config name="SFTP_Config1" doc:name="SFTP Config" doc:id="5524d3a6-975c-478c-b8dd-cbedaa366199" >
+		<sftp:connection host="localhost" username="tester" password="password" workingDir="/output"/>
+	</sftp:config>
+	<sftp:config name="SFTP_Config" doc:name="SFTP Config" doc:id="0560bade-421f-43f8-9428-80a911139011" >
+		<sftp:connection workingDir="/input" host="localhost" username="tester" password="password" />
+	</sftp:config>
+	<configuration doc:name="Configuration" doc:id="6e1aeb6e-8ff1-4fd1-969d-aba17a9e0725" defaultErrorHandler-ref="global-error-handlingError_Handler" />
+	<flow name="pocFlow" doc:id="0157eaa4-1435-488f-a365-fa75172110ee" >
+		<sftp:listener doc:name="On New or Updated File" doc:id="c221f77d-a1e1-43ff-a089-eaa9674f0d0d" config-ref="SFTP_Config">
+			<scheduling-strategy >
+				<fixed-frequency frequency="45" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</sftp:listener>
+		<sftp:read doc:name="Read" doc:id="2159d30d-896c-4555-8a9c-3a27e9614cde" config-ref="SFTP_Config" path="emp-data-file.csv"/>
+		<logger level="INFO" doc:name="Logger" doc:id="43af020c-a381-46b8-b94b-2c28cc399540" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="84a55d04-ddbf-46b6-bec2-1eac0b591d3a" >
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="32df98a5-9a4c-497c-af2f-e91aa88b0d84" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload filter ((record) ->
+    record.Joining_Date != null and
+    daysBetween(record.Joining_Date as 
+    	Date {format : "dd-MM-yyyy"}, now()
+    ) 
+    <= 15
+)]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<sftp:write doc:name="new emp" doc:id="9e55fef8-87f9-47f8-9e4a-fd0a01c751db" config-ref="SFTP_Config1" path="/new_joiners.csv"/>
+				<logger level="INFO" doc:name="Logger" doc:id="41a0137d-5af8-4ba7-b3c5-0d81ac2f5bc4" message="#[payload]"/>
+			</route>
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="06ca4a97-9fed-4398-9fd5-2a4b943bedd8" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload filter ((record) ->
+    record.Joining_Date != null and
+    daysBetween(record.Joining_Date as Date {format: "dd-MM-yyyy"}, now()) > 15
+)
+
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<sftp:write doc:name="old emp" doc:id="5524d3a6-975c-478c-b8dd-cbedaa366199" config-ref="SFTP_Config1" path="/payload_data_file.csv"/>
+				<logger level="INFO" doc:name="Logger" doc:id="c19e5933-4076-449c-83d9-567958f16ceb" message="#[payload]"/>
+				<!-- [STUDIO:"Request"]<http:request method="POST" doc:name="Request" doc:id="02d35190-d437-4ba6-b17c-055a31b839dc" config-ref="HTTP_Request_configuration" path="/employee" /> [STUDIO] -->
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="af3ac6d0-0cff-4593-ac7a-234f3e618638" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload[1]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="Flow Reference" doc:id="7687d4d9-70bd-41c5-9572-67c5da7cdbab" name="emp-sapiFlow"/>
+		<ee:transform doc:name="Transform Message" doc:id="71c792c8-0220-471e-8409-6840654a980b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"Success"
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="httpStatus" ><![CDATA[201]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="48e6c6db-87c5-42b9-b614-7a70bfdde746" message="#[payload[0]]"/>
+	</flow>
+</mule>
